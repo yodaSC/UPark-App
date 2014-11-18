@@ -1,0 +1,81 @@
+
+// PERMITE LA LECTURA DE DOS RFIDS SIMULTANEAMENTE
+
+#include <SoftwareSerial.h>
+SoftwareSerial RFIDEntrada(10,11); //RX TX
+SoftwareSerial RFIDSalida(8,9); //RX TX
+int datosRFID; // CAPTURA LOS DATOS RFID
+int arrTarjetaAcceso[14] = {
+0,0,0,0,0,0,0,0,0,0,0,0,0,0}; // TARJETA QUE SE LEE DEL RFID
+/*BASE DE DATOS DE TARJETAS DE ACCESO, SI LA TARJETA NO ESTA AQUI NO SERA AUTORIZADA*/
+int arrTarjeta1[15] = {
+1,2,48,51,48,48,55,52,50,53,49,56,52,65,3}; // TARJETA 9496, PRIMER DIGITO 1 INDICA QUE EL CAMPO ES PREFERENCIAL
+int arrTarjeta2[15] = {
+0,2,48,51,48,48,55,53,49,55,48,57,54,56,3}; // TARJETA 5897, PRIMER DIGITO 0 INDICA QUE EL CAMPO ES REGULAR
+
+void setup()
+{
+
+  Serial.begin(9600);
+   while (!Serial) {
+    ; // wait for serial port to connect. Needed for Leonardo only
+  }
+
+  RFIDEntrada.begin(9600);
+  RFIDSalida.begin(9600);
+}
+
+void loop()
+{
+
+  leerTarjetaEntrada();
+  leerTarjetaSalida();
+  
+}
+
+void leerTarjetaEntrada()
+{
+  // By default, the last intialized port is listening.
+  // when you want to listen on a port, explicitly select it:
+  RFIDEntrada.listen();
+  Serial.println("Data from entrance:");
+  delay(1000);
+  while (RFIDEntrada.available() > 0) {
+    delay(100); // TIEMPO PARA LEER LA TARJETA
+    for (int z = 0 ; z < 14 ; z++) // LEER LA TARJETA Y ALMACENARLA EN UN ARRAY
+    {
+    datosRFID= RFIDEntrada.read();
+    arrTarjetaAcceso[z] = datosRFID;
+    }
+    RFIDEntrada.flush(); // TERMINAR LA LECTURA
+    //SI SE DESEA VER EL NUMERO DE TARJETA EN EL SERIAL MONITOR, SE DEBE DESCOMENTAR LA SECCION DE ABAJO
+    for(int i = 0; i < 14; i++) {
+    Serial.print(arrTarjetaAcceso[i]);
+    }
+    }
+  Serial.println();
+
+}
+void leerTarjetaSalida()
+{
+RFIDSalida.listen();
+  Serial.println("Data from exit:");
+  delay(1000);
+  while (RFIDSalida.available() > 0) {
+  
+  delay(100); // TIEMPO PARA LEER LA TARJETA
+  for (int z = 0 ; z < 14 ; z++) // LEER LA TARJETA Y ALMACENARLA EN UN ARRAY
+  {
+  datosRFID= RFIDSalida.read();
+  arrTarjetaAcceso[z] = datosRFID;
+  }
+  RFIDSalida.flush(); // TERMINAR LA LECTURA
+  //SI SE DESEA VER EL NUMERO DE TARJETA EN EL SERIAL MONITOR, SE DEBE DESCOMENTAR LA SECCION DE ABAJO
+  for(int i = 0; i < 14; i++) {
+  Serial.print(arrTarjetaAcceso[i]);
+  }
+  }
+    
+  Serial.println();
+
+}
