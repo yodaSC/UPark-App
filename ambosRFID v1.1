@@ -1,0 +1,111 @@
+#include <SoftwareSerial.h>
+SoftwareSerial RFIDEntrada(10,11); //RX TX
+SoftwareSerial RFIDSalida(8,9); //RX TX
+void setup()
+{
+  Serial.begin(9600);
+  while (!Serial) {
+    ; 
+  }
+  RFIDEntrada.begin(9600);
+  RFIDSalida.begin(9600);
+
+}
+void loop()
+{
+  lecturaTarjetas();
+
+}
+
+void lecturaTarjetas()
+{
+  {
+
+    if ((millis() / 2000) % 2 == 0){
+      leerTarjetaEntrada();
+    }
+    else
+    {
+      leerTarjetaSalida();
+    }
+  }
+}
+
+
+void leerTarjetaEntrada()
+{
+  int datosRFIDEntrada = 0; // CAPTURA LOS DATOS RFID
+  int arrTarjetaAcceso[14]= {
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0   }; // TARJETA QUE SE LEE DEL RFID
+  RFIDEntrada.listen();
+  if (RFIDEntrada.available() > 0) {
+    delay(100); // TIEMPO PARA LEER LA TARJETA
+    if(RFIDEntrada.read() == 2)
+    {
+      arrTarjetaAcceso[0] = 2;  
+      for (int a = 1 ; a < 14 ; a++) // LEER LA TARJETA Y ALMACENARLA EN UN ARRAY
+      {
+        datosRFIDEntrada= RFIDEntrada.read();
+        arrTarjetaAcceso[a] = datosRFIDEntrada;
+      }
+    }
+    RFIDEntrada.flush(); // TERMINAR LA LECTURA
+    //SI SE DESEA VER EL NUMERO DE TARJETA EN EL SERIAL MONITOR, SE DEBE DESCOMENTAR LA SECCION DE ABAJO
+    if (arrTarjetaAcceso[0] != 2)
+    {
+      leerTarjetaEntrada();
+    }
+    else
+    {
+      for(int y = 0; y < 14; y++) {
+        Serial.print(arrTarjetaAcceso[y]);
+      }
+      //delay(500);
+      Serial.println();
+    }
+  }
+
+}
+void leerTarjetaSalida()
+{
+
+  int datosRFID = 0; // CAPTURA LOS DATOS RFID
+  int arrTarjetaAcceso[14] = {
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0    }; // TARJETA QUE SE LEE DEL RFID
+  RFIDSalida.listen();
+
+  if (RFIDSalida.available() > 0) {
+    delay(100); // TIEMPO PARA LEER LA TARJETA
+    if(RFIDSalida.read() == 2)
+    {
+      arrTarjetaAcceso[0] = 2;  
+      for (int z = 1 ; z < 14 ; z++) // LEER LA TARJETA Y ALMACENARLA EN UN ARRAY
+      {
+        datosRFID= RFIDSalida.read();
+        arrTarjetaAcceso[z] = datosRFID;
+      }
+    }
+
+
+
+    RFIDSalida.flush(); // TERMINAR LA LECTURA
+    //SI SE DESEA VER EL NUMERO DE TARJETA EN EL SERIAL MONITOR, SE DEBE DESCOMENTAR LA SECCION DE ABAJO
+
+    if (arrTarjetaAcceso[0] != 2)
+    {
+      leerTarjetaSalida();
+    }
+    else
+    {
+      for(int i = 0; i < 14; i++) {
+        Serial.print(arrTarjetaAcceso[i]);
+      }
+      Serial.println();
+      //delay(500);
+    }
+
+  }
+}
+
+
+
