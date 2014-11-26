@@ -1,0 +1,151 @@
+#include <SoftwareSerial.h>
+SoftwareSerial RFIDEntrada(10,11); //RX TX
+SoftwareSerial RFIDSalida(8,9); //RX TX
+String strTarjeta1 = "24851484855525053495652653";
+void setup()
+{
+  Serial.begin(9600);
+  while (!Serial) {
+    ; 
+  }
+  RFIDEntrada.begin(9600);
+  RFIDSalida.begin(9600);
+
+}
+void loop()
+{
+  lecturaTarjetas();
+
+}
+
+void lecturaTarjetas()
+{
+  {
+
+    if ((millis() / 2000) % 2 == 0){
+      leerTarjetaEntrada();
+    }
+    else
+    {
+      leerTarjetaSalida();
+    }
+  }
+}
+
+
+void leerTarjetaEntrada()
+{
+  int intDatosRFIDEntrada = 0; // CAPTURA LOS DATOS RFID
+   String strNumeroTarjetaEntrada=""; // CONTIENE UN STRING DEL NUMERO DE TARJETA
+  int arrTarjetaAccesoEntrada[14]= {
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0   }; // TARJETA QUE SE LEE DEL RFID
+  RFIDEntrada.listen();
+  if (RFIDEntrada.available() > 0) {
+    delay(100); // TIEMPO PARA LEER LA TARJETA
+    if(RFIDEntrada.read() == 2)
+    {
+      arrTarjetaAccesoEntrada[0] = 2;  
+      for (int a = 1 ; a < 14 ; a++) // LEER LA TARJETA Y ALMACENARLA EN UN ARRAY
+      {
+        intDatosRFIDEntrada= RFIDEntrada.read();
+        arrTarjetaAccesoEntrada[a] = intDatosRFIDEntrada;
+      }
+    }
+    RFIDEntrada.flush(); // TERMINAR LA LECTURA
+    //SI SE DESEA VER EL NUMERO DE TARJETA EN EL SERIAL MONITOR, SE DEBE DESCOMENTAR LA SECCION DE ABAJO
+    if (arrTarjetaAccesoEntrada[0] != 2)
+    {
+      leerTarjetaEntrada();
+    }
+    else
+    {
+      for(int y = 0; y < 14; y++) {
+        strNumeroTarjetaEntrada = strNumeroTarjetaEntrada+""+arrTarjetaAccesoEntrada[y]; //CONVERTIR EL ARREGLO DEL NUMERO DE TARJETA A STRING
+      }
+    }
+    
+    boolean boolVerificarTarjetas = compararTarjetas(strNumeroTarjetaEntrada);
+      
+      if ( boolVerificarTarjetas == true) // AQUI SE DEBERA MOSTRAR EL SEMAFORO QUE INDICA AVANZAR O NO, ADEMAS DE ACTIVAR EL SERVO
+      {
+        Serial.println("Tarjeta encontrada");
+        Serial.println(strNumeroTarjetaEntrada);
+      }
+      else
+      {
+      Serial.println("Tarjeta  no encontrada");
+      Serial.println(strNumeroTarjetaEntrada);
+      
+      }
+  }
+
+}
+void leerTarjetaSalida()
+{
+  String strNumeroTarjetaSalida="";
+  int intDatosRFID = 0; // CAPTURA LOS DATOS RFID
+  int arrTarjetaAccesoSalida[14] = {
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0    }; // TARJETA QUE SE LEE DEL RFID
+  RFIDSalida.listen();
+
+  if (RFIDSalida.available() > 0) {
+    delay(100); // TIEMPO PARA LEER LA TARJETA
+    if(RFIDSalida.read() == 2)
+    {
+      arrTarjetaAccesoSalida[0] = 2;  
+      for (int z = 1 ; z < 14 ; z++) // LEER LA TARJETA Y ALMACENARLA EN UN ARRAY
+      {
+        intDatosRFID= RFIDSalida.read();
+        arrTarjetaAccesoSalida[z] = intDatosRFID;
+      }
+    }
+
+
+
+    RFIDSalida.flush(); // TERMINAR LA LECTURA
+    //SI SE DESEA VER EL NUMERO DE TARJETA EN EL SERIAL MONITOR, SE DEBE DESCOMENTAR LA SECCION DE ABAJO
+
+    if (arrTarjetaAccesoSalida[0] != 2)
+    {
+      leerTarjetaSalida();
+    }
+    else
+    {
+      for(int i = 0; i < 14; i++) {
+
+        strNumeroTarjetaSalida = strNumeroTarjetaSalida+""+arrTarjetaAccesoSalida[i]; //CONVERTIR EL ARREGLO DEL NUMERO DE TARJETA A STRING
+      }
+      
+      boolean boolVerificarTarjetas = compararTarjetas(strNumeroTarjetaSalida);
+      
+      if ( boolVerificarTarjetas == true) // AQUI SE DEBERA MOSTRAR EL SEMAFORO QUE INDICA AVANZAR O NO
+      {
+        Serial.println("Tarjeta encontrada");
+        Serial.println(strNumeroTarjetaSalida);
+      }
+      else
+      {
+      Serial.println("Tarjeta  no encontrada");
+      Serial.println(strNumeroTarjetaSalida);
+      
+      }
+      
+      //delay(500);
+    }
+
+  }
+}
+
+
+boolean compararTarjetas(String strNumeroTarjeta) // VERIFICAR LA TARJETA EN LA BD DE TARJETAS
+{
+  boolean boolComparador= false;
+  
+  if (strNumeroTarjeta == strTarjeta1)
+  {
+    boolComparador = true; // LA TARJETA COINCIDE
+  }
+  
+  return boolComparador;
+
+}
