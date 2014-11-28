@@ -1,7 +1,9 @@
 #include <SoftwareSerial.h>
 SoftwareSerial RFIDEntrada(10,11); //RX TX
 SoftwareSerial RFIDSalida(8,9); //RX TX
-String strTarjeta1 = "24851484855525053495652653";
+String strTarjeta1 = "24851484855525053495652653"; // PRUEBA PARA COMPARAR TAGS
+int intContadorPreferencial = 3;
+int intContadorRegular = 20;
 void setup()
 {
   Serial.begin(9600);
@@ -14,7 +16,7 @@ void setup()
 }
 void loop()
 {
-  lecturaTarjetas();
+  lecturaTarjetas(); // LEER TARJETAS
 
 }
 
@@ -64,12 +66,13 @@ void leerTarjetaEntrada()
       }
     }
     
-    boolean boolVerificarTarjetas = compararTarjetas(strNumeroTarjetaEntrada);
+    boolean boolVerificarTarjetas = compararTarjetas(strNumeroTarjetaEntrada); // ES NECESARIO VERIFICAR SI ES PREFERENCIAL O REGULAR.
       
       if ( boolVerificarTarjetas == true) // AQUI SE DEBERA MOSTRAR EL SEMAFORO QUE INDICA AVANZAR O NO, ADEMAS DE ACTIVAR EL SERVO
       {
         Serial.println("Tarjeta encontrada");
         Serial.println(strNumeroTarjetaEntrada);
+        //METODO ABRIR SERVO
       }
       else
       {
@@ -122,6 +125,7 @@ void leerTarjetaSalida()
       {
         Serial.println("Tarjeta encontrada");
         Serial.println(strNumeroTarjetaSalida);
+        //METODO ABRIR SERVO
       }
       else
       {
@@ -130,7 +134,6 @@ void leerTarjetaSalida()
       
       }
       
-      //delay(500);
     }
 
   }
