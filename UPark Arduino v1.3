@@ -1,0 +1,379 @@
+
+#include <SoftwareSerial.h>
+#include <Servo.h> 
+#include <LiquidCrystal.h>
+
+SoftwareSerial RFIDEntrada(9,9); //RX TX
+SoftwareSerial RFIDSalida(8,8); //RX TX 
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+String arrTarjetasAutorizadasRegulares[2]= {
+  "24851484855525053495652653","24955484850485151554955533"}; // TARJETAS AUTORIZADAS PARA INGRESAR AL PARQUEO REGULAR
+String arrTarjetasAutorizadasPreferenciales[1]= {
+  "24851484855534955485754563" }; // TARJETAS AUTORIZADAS PARA INGRESAR AL PARQUEO PREFERENCIAL     
+String arrEspaciosRegulares[8]= {
+  "0","0","0","0","0","0","0","0" }; // ESPACIOS UTILIZADOS EN EL PARQUEO REGULAR
+String arrEspaciosPreferenciales[2]= {
+  "0","0"}; // ESPACIOS UTILIZADOS EN EL PARQUEO PREFERENCIAL
+
+Servo myservo1;  // create servo object to control a servo1
+Servo myservo2;  // create servo object to control a servo2
+#define BarLowin    177       //Low position of the barrier.
+#define BarUpin     95 
+
+#define BarLowout    177       //Low position of the barrier.
+#define BarUpout     95 
+
+void setup()
+{
+  Serial.begin(9600);
+
+  myservo1.write(BarLowin); //set initial servo1 position if desired
+  myservo2.write(BarLowout); //set initial servo2 position if desired
+
+  myservo1.attach(13);  //the pin for the servo1 control
+  myservo2.attach(10);  //the pin for the servo2 control
+  //enable serial data print 
+  // Serial.begin(9600); 
+
+  lcd.begin(16, 2);
+
+  while (!Serial) {
+    ; 
+  }
+  RFIDEntrada.begin(9600);
+  RFIDSalida.begin(9600);
+
+}
+void loop()
+{
+  lecturaTarjetas(); // LEER TARJETAS
+    int intContadorPreferencial= contadorCamposPreferenciales();
+    int intContadorRegular= contadorCamposRegulares();
+
+}
+
+void lecturaTarjetas()
+{
+  {
+
+    if ((millis() / 2000) % 2 == 0){
+      leerTarjetaEntrada();
+
+
+    }
+    else
+    {
+      leerTarjetaSalida();
+
+    }
+  }
+}
+
+
+void leerTarjetaEntrada()
+{
+  int intDatosRFIDEntrada = 0; // CAPTURA LOS DATOS RFID
+  String strNumeroTarjetaEntrada=""; // CONTIENE UN STRING DEL NUMERO DE TARJETA
+  int arrTarjetaAccesoEntrada[14]= {
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0       }; // TARJETA QUE SE LEE DEL RFID
+  RFIDEntrada.listen();
+  if (RFIDEntrada.available() > 0) {
+    delay(100); // TIEMPO PARA LEER LA TARJETA
+    if(RFIDEntrada.read() == 2)
+    {
+      arrTarjetaAccesoEntrada[0] = 2;  
+      for (int a = 1 ; a < 14 ; a++) // LEER LA TARJETA Y ALMACENARLA EN UN ARRAY
+      {
+        intDatosRFIDEntrada= RFIDEntrada.read();
+        arrTarjetaAccesoEntrada[a] = intDatosRFIDEntrada;
+      }
+    }
+    RFIDEntrada.flush(); // TERMINAR LA LECTURA
+    //SI SE DESEA VER EL NUMERO DE TARJETA EN EL SERIAL MONITOR, SE DEBE DESCOMENTAR LA SECCION DE ABAJO
+    if (arrTarjetaAccesoEntrada[0] != 2)
+    {
+      leerTarjetaEntrada();
+    }
+    else
+    {
+      for(int y = 0; y < 14; y++) {
+        strNumeroTarjetaEntrada = strNumeroTarjetaEntrada+""+arrTarjetaAccesoEntrada[y]; //CONVERTIR EL ARREGLO DEL NUMERO DE TARJETA A STRING
+      }
+    }
+
+    boolean boolVerificarTarjetas = compararTarjetasEntrada(strNumeroTarjetaEntrada); // VERFICAR SI LA TARJETA ESTA AUTORIZADA Y SI HAY ESPACIO EN EL PARQUEO
+
+    if ( boolVerificarTarjetas == true) // AQUI SE DEBERA MOSTRAR EL SEMAFORO QUE INDICA AVANZAR O NO, ADEMAS DE ACTIVAR EL SERVO
+    {
+      Serial.println("Entrada");
+      Serial.println("Tarjeta encontrada");
+      Serial.println(strNumeroTarjetaEntrada);
+      delay(1000);
+      //METODO ABRIR SERVO
+
+      myservo1.write(BarUpin) ; 
+      delay (4000);
+      myservo1.write(BarLowin);
+      delay (1000);
+      lcd.print("hello, world!");
+    }
+    else
+    {
+      Serial.println("Entrada");
+      Serial.println("Tarjeta  no encontrada");
+      Serial.println(strNumeroTarjetaEntrada);
+      delay(1000);
+
+    }
+  }
+
+}
+void leerTarjetaSalida()
+{
+  String strNumeroTarjetaSalida="";
+  int intDatosRFID = 0; // CAPTURA LOS DATOS RFID
+  int arrTarjetaAccesoSalida[14] = {
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0        }; // TARJETA QUE SE LEE DEL RFID
+  RFIDSalida.listen();
+
+  if (RFIDSalida.available() > 0) {
+    delay(100); // TIEMPO PARA LEER LA TARJETA
+    if(RFIDSalida.read() == 2)
+    {
+      arrTarjetaAccesoSalida[0] = 2;  
+      for (int z = 1 ; z < 14 ; z++) // LEER LA TARJETA Y ALMACENARLA EN UN ARRAY
+      {
+        intDatosRFID= RFIDSalida.read();
+        arrTarjetaAccesoSalida[z] = intDatosRFID;
+      }
+    }
+
+
+
+    RFIDSalida.flush(); // TERMINAR LA LECTURA
+    //SI SE DESEA VER EL NUMERO DE TARJETA EN EL SERIAL MONITOR, SE DEBE DESCOMENTAR LA SECCION DE ABAJO
+
+    if (arrTarjetaAccesoSalida[0] != 2)
+    {
+      leerTarjetaSalida();
+    }
+    else
+    {
+      for(int i = 0; i < 14; i++) {
+
+        strNumeroTarjetaSalida = strNumeroTarjetaSalida+""+arrTarjetaAccesoSalida[i]; //CONVERTIR EL ARREGLO DEL NUMERO DE TARJETA A STRING
+      }
+
+      boolean boolVerificarTarjetas = compararTarjetasSalida(strNumeroTarjetaSalida);
+
+      if ( boolVerificarTarjetas == true) // AQUI SE DEBERA MOSTRAR EL SEMAFORO QUE INDICA AVANZAR O NO
+      {
+        Serial.println("Salida");
+        Serial.println("Tarjeta encontrada");
+        Serial.println(strNumeroTarjetaSalida);
+        delay(1000);
+        //METODO ABRIR SERVO
+
+        myservo2.write(BarUpout) ; 
+
+        delay (4000);
+        myservo2.write(BarLowout);
+        delay (1000);
+        lcd.print("hello, world!");
+
+      }
+      else
+      {
+        Serial.println("Salida");  
+        Serial.println("Tarjeta  no encontrada");
+        Serial.println(strNumeroTarjetaSalida);
+        delay(1000);
+      }
+
+    }
+
+  }
+}
+
+
+boolean compararTarjetasEntrada(String strNumeroTarjeta) // VERIFICAR LA TARJETA EN LA BD DE TARJETAS PARA LA ENTRADA
+{
+  boolean boolComparador= false; //VARIABLE A RETORNAR SI LA TARJETA SUPERA EL PROCESO DE VALIDACION
+  boolean boolValidaParqueo = false;//VALIDA SI EL CARRO CON EL NUMERO DE TARJETA YA ESTA DENTRO DEL PARQUEO
+  boolean boolValidaAccesoRegular = false; //VALIDA SI LA TARJETA ESTA EN LA BD DE TARJETAS REGULARES
+  boolean boolValidaAccesoPreferencial = false; //VALIDA SI LA TARJETA ESTA EN LA BD DE TARJETAS PREFERENCIALES
+
+  /* PROCESO PARA VALIDAR SI EL AUTOMOVIL SE ENCUENTRA DENTRO DEL PARQUEO*/
+
+  for(int i = 0; i < 3; i++) { //VALIDAR EN LOS ESPACIOS PREFERENCIALES
+    if ( strNumeroTarjeta == arrEspaciosPreferenciales[i]){
+      boolean boolValidaParqueo = true;//EL AUTO ESTA DENTRO DEL PARQUEO
+      break;
+    }
+  }
+
+  if (boolValidaParqueo== false) //VALIDAR EN LOS ESPACIOS REGULARES
+  {
+    for(int i = 0; i < 8; i++) { //VALIDAR EN LOS CAMPOS PREFERENCIALES
+      if ( strNumeroTarjeta == arrEspaciosRegulares[i]){
+        boolean boolValidaParqueo = true; // EL AUTO ESTA DENTRO DEL PARQUEO
+        break;
+      }
+    }  
+  }
+
+  /* PROCESO PARA VERIFICAR SI HAY AUTORIZACION Y EL TIPO DE ACCESO QUE TIENE SEGUN SU CONDICION: REGULAR O PREFERENCIAL*/
+
+  if (boolValidaParqueo== false){
+
+    /*VERIFICAR ACCESO REGULAR Y VERIFICAR ESPACIOS*/
+
+    for(int i = 0; i < 3; i++) { //VALIDAR EN LA BD DE TARJETAS REGULARES
+      if ( strNumeroTarjeta == arrTarjetasAutorizadasRegulares[i]){
+        boolean boolValidaAccesoRegular = true; //TARJETA ENCONTRADADA
+        break;
+      }
+    }
+
+    if (boolValidaAccesoRegular ==true){ // VALIDAR SI HAY ESPACIO EN CAMPOS REGULARES
+      for(int i = 0; i < 8; i++) { //VALIDAR EN LOS CAMPOS PREFERENCIALES
+        if ( arrEspaciosRegulares[i] == "0"){
+          arrEspaciosRegulares[i] == "strNumeroTarjeta";
+          boolComparador= true;
+          break; 
+        }
+      }
+    }
+
+    /*VERIFICAR ACCESO PREFERENCIAL Y VERIFICAR ESPACIOS*/
+    
+    if (boolComparador == false) //LA TARJETA NO FUE ENCONTRADA EN LA BD DE ACCESOS AUTORIZADOS REGULARES
+    {
+      for(int i = 0; i < 3; i++) { //VALIDAR EN LOS PREFERENCIALES
+        if ( strNumeroTarjeta == arrTarjetasAutorizadasPreferenciales[i]){
+          boolean boolValidaAccesoPreferencial = true; //TARJETA ENCONTRADADA
+          break;
+        }
+      }
+
+    }
+    if (boolValidaAccesoPreferencial ==true){ // VALIDAR SI HAY ESPACIO EN CAMPOS PREFERENCIALES
+      for(int i = 0; i < 2; i++) { //VALIDAR EN LOS CAMPOS PREFERENCIALES
+        if ( arrEspaciosPreferenciales[i] == "0"){
+          arrEspaciosPreferenciales[i] == "strNumeroTarjeta";
+          boolComparador= true;
+          break; 
+        }
+      }
+    }
+  }  
+
+  return boolComparador;
+
+}
+
+boolean compararTarjetasSalida(String strNumeroTarjeta) // VERIFICAR LA TARJETA EN LA BD DE TARJETAS PARA LA SALIDA
+{
+  boolean boolComparador= false; //VARIABLE A RETORNAR SI LA TARJETA SUPERA EL PROCESO DE VALIDACION
+  boolean boolValidaParqueo = false;//VALIDA SI EL CARRO CON EL NUMERO DE TARJETA YA ESTA DENTRO DEL PARQUEO
+  boolean boolValidaAccesoRegular = false; //VALIDA SI LA TARJETA ESTA EN LA BD DE TARJETAS REGULARES
+  boolean boolValidaAccesoPreferencial = false; //VALIDA SI LA TARJETA ESTA EN LA BD DE TARJETAS PREFERENCIALES
+
+  /* PROCESO PARA VALIDAR  QUE EL AUTOMOVIL SE ENCUENTRA DENTRO DEL PARQUEO*/
+
+  for(int i = 0; i < 3; i++) { //VALIDAR EN LOS ESPACIOS PREFERENCIALES
+    if ( strNumeroTarjeta == arrEspaciosPreferenciales[i]){
+      boolean boolValidaParqueo = true;//EL AUTO ESTA DENTRO DEL PARQUEO
+      break;
+    }
+  }
+
+  if (boolValidaParqueo== false) //VALIDAR EN LOS ESPACIOS REGULARES
+  {
+    for(int i = 0; i < 8; i++) { //VALIDAR EN LOS CAMPOS PREFERENCIALES
+      if ( strNumeroTarjeta == arrEspaciosRegulares[i]){
+        boolean boolValidaParqueo = true; // EL AUTO ESTA DENTRO DEL PARQUEO
+        break;
+      }
+    }  
+  }
+
+  /* PROCESO PARA VERIFICAR SI HAY AUTORIZACION Y EL TIPO DE ACCESO QUE TIENE SEGUN SU CONDICION: REGULAR O PREFERENCIAL*/
+
+  if (boolValidaParqueo== true){
+
+    /*VERIFICAR ACCESO REGULAR Y VERIFICAR ESPACIOS*/
+
+    for(int i = 0; i < 3; i++) { //VALIDAR EN LA BD DE TARJETAS REGULARES
+      if ( strNumeroTarjeta == arrTarjetasAutorizadasRegulares[i]){
+        boolean boolValidaAccesoRegular = true; //TARJETA ENCONTRADADA
+        break;
+      }
+    }
+
+    if (boolValidaAccesoRegular ==true){ // VALIDAR SI HAY ESPACIO EN CAMPOS REGULARES
+      for(int i = 0; i < 8; i++) { //VALIDAR EN LOS CAMPOS PREFERENCIALES
+        if ( arrEspaciosRegulares[i] == strNumeroTarjeta ){
+          arrEspaciosRegulares[i] == "0";
+          boolComparador= true;
+          break; 
+        }
+      }
+    }
+
+    /*VERIFICAR ACCESO PREFERENCIAL Y VERIFICAR ESPACIOS*/
+    
+    if (boolComparador == false) //LA TARJETA NO FUE ENCONTRADA EN LA BD DE ACCESOS AUTORIZADOS REGULARES
+    {
+      for(int i = 0; i < 3; i++) { //VALIDAR EN LOS PREFERENCIALES
+        if ( strNumeroTarjeta == arrTarjetasAutorizadasPreferenciales[i]){
+          boolean boolValidaAccesoPreferencial = true; //TARJETA ENCONTRADADA
+          break;
+        }
+      }
+
+    }
+    if (boolValidaAccesoPreferencial ==true){ // VALIDAR SI HAY ESPACIO EN CAMPOS PREFERENCIALES
+      for(int i = 0; i < 2; i++) { //VALIDAR EN LOS CAMPOS PREFERENCIALES
+        if ( arrEspaciosPreferenciales[i] == strNumeroTarjeta){
+          arrEspaciosPreferenciales[i] == "0";
+          boolComparador= true;
+          break; 
+        }
+      }
+    }
+  }  
+
+  return boolComparador;
+
+}
+
+
+int contadorCamposRegulares()
+{
+  int intNumeroCamposRegulares=0;
+  
+  for(int i = 0; i < 8; i++) { //VALIDAR EN LOS CAMPOS REGULARES
+        if ( arrEspaciosRegulares[i] == "0"){
+         intNumeroCamposRegulares++;
+        }
+      }
+  
+   return intNumeroCamposRegulares;
+
+}
+
+int contadorCamposPreferenciales()
+{
+  int intNumeroCamposPreferenciales=0;
+  
+  for(int i = 0; i < 3; i++) { //VALIDAR EN LOS CAMPOS PREFERENCIALES
+        if ( arrEspaciosPreferenciales[i] == "0"){
+         intNumeroCamposPreferenciales++;
+        }
+      }
+  
+  
+  return intNumeroCamposPreferenciales;
+
+}
